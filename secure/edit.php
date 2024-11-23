@@ -2,97 +2,89 @@
 require '../.db.php';
 session_start();
 
-// Initialize rate-limiting variables
-if (!isset($_SESSION['login_attempts'])) {
-    $_SESSION['login_attempts'] = 0; // Number of login attempts
-    $_SESSION['last_attempt_time'] = time(); // Timestamp of the last login attempt
+// Check if the user is logged in
+if (!isset($_SESSION['user_id'])) {
+    die("You need to log in to edit your profile.");
 }
 
-$RATE_LIMIT_WINDOW = 60; // Time window in seconds (e.g., 1 minute)
-$MAX_ATTEMPTS = 5; // Maximum allowed attempts within the time window
+$user_id = $_SESSION['user_id'];
 
-// Reset attempts if the time window has passed
-if (time() - $_SESSION['last_attempt_time'] > $RATE_LIMIT_WINDOW) {
-    $_SESSION['login_attempts'] = 0;
-    $_SESSION['last_attempt_time'] = time();
+// Generate a CSRF token if not already set
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Increment login attempts
-    $_SESSION['login_attempts'] += 1;
-
-    // Check if the number of attempts exceeds the limit
-    if ($_SESSION['login_attempts'] > $MAX_ATTEMPTS) {
-        $remaining_time = $RATE_LIMIT_WINDOW - (time() - $_SESSION['last_attempt_time']);
-        $error_message = "Too many login attempts. Please try again after $remaining_time seconds.";
-    } else {
-        // Proceed with login validation
-        $username = $_POST['username'];
-        $password = $_POST['password'];
-
-        $query = "SELECT * FROM users WHERE username = ?";
-        $stmt = mysqli_prepare($conn, $query);
-        mysqli_stmt_bind_param($stmt, "s", $username);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $user = mysqli_fetch_assoc($result);
-
-        if ($user && password_verify($password, $user['password'])) {
-            // Reset login attempts upon successful login
-            $_SESSION['login_attempts'] = 0;
-
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            header("Location: index.php"); // Redirect to index page
-            exit();
-        } else {
-            $error_message = "Invalid username or password.";
-        }
-        mysqli_stmt_close($stmt);
+    // Check the CSRF token
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("Invalid CSRF token.");
     }
+
+    $email = $_POST['email'];
+    $fullname = $_POST['fullname'];
+
+    $query = "UPDATE users SET email = ?, fullname = ? WHERE id = ?";
+    $stmt = mysqli_prepare($conn, $query);
+    mysqli_stmt_bind_param($stmt, "ssi", $email, $fullname, $user_id);
+
+    if (mysqli_stmt_execute($stmt)) {
+        $success_message = "Profile updated successfully!";
+    } else {
+        $error_message = "Error: " . mysqli_error($conn);
+    }
+    mysqli_stmt_close($stmt);
+} else {
+    $query = "SELECT * FROM users WHERE id = ?";
+    $stmt = mysqli_prepare($conn, $query);
+    mysqli_stmt_bind_param($stmt, "i", $user_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $user = mysqli_fetch_assoc($result);
+    mysqli_stmt_close($stmt);
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Edit Profile</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-5">
         <div class="row justify-content-center">
             <div class="col-md-6">
-                <h2 class="text-center mb-4">Login</h2>
-                <?php if (!isset($_SESSION['user_id'])): ?>
-                    <?php if (!empty($error_message)): ?>
-                        <div class="alert alert-danger text-center"><?= htmlspecialchars($error_message) ?></div>
-                    <?php endif; ?>
-                    <form method="POST" class="p-4 border rounded shadow-sm bg-light">
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Login</button>
-                    </form>
-                    <div class="text-center mt-3">
-                        <a href="forget-password.php">Forget Password?</a>
-                    </div>
-                <?php else: ?>
-                    <div class="alert alert-success text-center">
-                        You are already logged in. <a href="index.php" class="alert-link">Go to homepage</a>.
-                    </div>
+                <h2 class="text-center mb-4">Edit Profile</h2>
+
+                <?php if (!empty($success_message)): ?>
+                    <div class="alert alert-success text-center"><?= htmlspecialchars($success_message) ?></div>
+                <?php elseif (!empty($error_message)): ?>
+                    <div class="alert alert-danger text-center"><?= htmlspecialchars($error_message) ?></div>
                 <?php endif; ?>
+
+                <form method="POST" class="p-4 border rounded shadow-sm bg-light">
+                    <!-- CSRF Token -->
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email" value="<?= htmlspecialchars($user['email']) ?>" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fullname" class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="fullname" name="fullname" value="<?= htmlspecialchars($user['fullname']) ?>" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Update Profile</button>
+                </form>
             </div>
         </div>
     </div>
 
+    <!-- Bootstrap JS and Popper.js -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
 </body>
