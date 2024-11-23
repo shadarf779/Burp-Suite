@@ -1,50 +1,42 @@
 <?php
 session_start();
 
-// Initialize session variables
+// Initialize rate limiting variables
 if (!isset($_SESSION['attempts'])) {
-    $_SESSION['attempts'] = 0; // Number of failed attempts
-    $_SESSION['last_attempt_time'] = 0; // Timestamp of the last failed attempt
-    $_SESSION['block_time'] = 60; // Initial block time (1 minute)
+    $_SESSION['attempts'] = 0; // Number of attempts
+    $_SESSION['last_attempt_time'] = time(); // Timestamp of the last attempt
 }
 
-$current_time = time();
+$RATE_LIMIT_WINDOW = 60; // Time window in seconds (1 minute)
+$MAX_ATTEMPTS = 5; // Maximum number of attempts allowed
 
-// Check if the user is currently blocked
-if ($current_time - $_SESSION['last_attempt_time'] < $_SESSION['block_time']) {
-    $remaining_time = $_SESSION['block_time'] - ($current_time - $_SESSION['last_attempt_time']);
-    die("Too many failed attempts. You are blocked for another $remaining_time seconds.");
+// Reset attempts if the time window has passed
+if (time() - $_SESSION['last_attempt_time'] > $RATE_LIMIT_WINDOW) {
+    $_SESSION['attempts'] = 0;
+    $_SESSION['last_attempt_time'] = time();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user_otp = $_POST['otp'];
+    // Increment attempts
+    $_SESSION['attempts'] += 1;
 
-    // Validate the OTP
-    if (isset($_SESSION['otp']) && $user_otp == $_SESSION['otp'] && $current_time <= $_SESSION['otp_expiry']) {
-        // Success: Reset attempts and block time
-        $_SESSION['attempts'] = 0;
-        $_SESSION['block_time'] = 60; // Reset to initial block time
-        $_SESSION['otp_verified'] = true;
-        header("Location: reset.php");
-        exit();
+    // Check if attempts exceed the allowed limit
+    if ($_SESSION['attempts'] > $MAX_ATTEMPTS) {
+        $error_message = "Too many failed attempts. Please try again after " . ($RATE_LIMIT_WINDOW - (time() - $_SESSION['last_attempt_time'])) . " seconds.";
     } else {
-        // Failed attempt
-        $_SESSION['attempts']++;
-        $_SESSION['last_attempt_time'] = $current_time;
+        $user_otp = $_POST['otp'];
 
-        // Increase block time exponentially
-        $_SESSION['block_time'] = pow(2, $_SESSION['attempts']) * 60;
-
-        $error_message = "Invalid or expired OTP. You have " . (5 - $_SESSION['attempts']) . " attempts remaining.";
-
-        // If max attempts are exceeded, block the user
-        if ($_SESSION['attempts'] >= 5) {
-            die("Too many failed attempts. You are now blocked for " . ($_SESSION['block_time'] / 60) . " minutes.");
+        // Validate the OTP
+        if (isset($_SESSION['otp']) && $user_otp == $_SESSION['otp'] && time() <= $_SESSION['otp_expiry']) {
+            $_SESSION['otp_verified'] = true;
+            header("Location: reset.php");
+            exit();
+        } else {
+            $error_message = "Invalid or expired OTP.";
         }
     }
 }
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
