@@ -54,6 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Login</button>
                     </form>
+                    <!-- forget password ? -->
+                    <div class="text-center mt-3">
+                        <a href="forget-password.php">Forget Password?</a>
+                    </div>
+
                 <?php else: ?>
                     <div class="alert alert-success text-center">
                         You are already logged in. <a href="index.php" class="alert-link">Go to homepage</a>.
