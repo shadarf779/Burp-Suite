@@ -38,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="otp" class="form-label">Enter OTP</label>
                         <input type="text" class="form-control" id="otp" name="otp" required>
                     </div>
+                    <?php echo $_SESSION['otp']; ?>
                     <button type="submit" class="btn btn-primary w-100">Verify OTP</button>
                 </form>
             </div>
