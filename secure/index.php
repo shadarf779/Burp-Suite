@@ -13,7 +13,7 @@ session_start();
 </head>
 <body>
     <div class="container text-center mt-5">
-        <h1 class="mb-4">Welcome to Unsecrue Website</h1>
+        <h1 class="mb-4">Welcome Secrue Website</h1>
 
         <?php if (isset($_SESSION['user_id'])): ?>
             <!-- User is logged in -->
@@ -29,12 +29,11 @@ session_start();
             <div class="d-flex justify-content-center mt-4">
                 <a href="register.php" class="btn btn-primary mx-2">Register</a>
                 <a href="login.php" class="btn btn-success mx-2">Login</a>
-                
             </div>
-
-            <p class="lead">Visit Secure web page .</p>
+            <p class="lead">Visit an Unsecrue website.</p>
             <div class="d-flex justify-content-center mt-4">
-                <a href="secure" class="btn btn-primary mx-2">Secure page </a>
+
+                <a href="../" class="btn btn-primary mx-2">Unsecure page </a>
                 
             </div>
         <?php endif; ?>
