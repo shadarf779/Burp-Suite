@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error_message = "Invalid email address.";
     } else {
-        $otp = rand(1000, 9999);
+        $otp = rand(100, 999);
         $_SESSION['otp'] = $otp;
         $_SESSION['otp_email'] = $email;
         $_SESSION['otp_expiry'] = time() + 300;
